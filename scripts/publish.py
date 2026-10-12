@@ -66,6 +66,17 @@ def main():
         check(s.post(f"{rest}/workspaces", json={"workspace": {"name": WS}}), what="create workspace")
     print("workspace ok")
 
+    # remove GeoServer's bundled sample data (topp, nurc, tiger, ne, sf ...) so only our layers are advertised
+    groups = s.get(f"{rest}/layergroups.json").json().get("layerGroups")
+    for g in (groups.get("layerGroup", []) if isinstance(groups, dict) else []):
+        s.delete(f"{rest}/layergroups/{g['name']}")
+    wss = s.get(f"{rest}/workspaces.json").json().get("workspaces")
+    for w in (wss.get("workspace", []) if isinstance(wss, dict) else []):
+        if w["name"] != WS:
+            r = s.delete(f"{rest}/workspaces/{w['name']}?recurse=true")
+            print(f"removed sample workspace {w['name']}" if r.status_code == 200
+                  else f"could not remove workspace {w['name']} ({r.status_code})")
+
     # tile matrix set EPSG:3857
     if s.get(f"{a.url}/gwc/rest/gridsets/EPSG:3857.xml").status_code != 200:
         res = "".join(f"<double>{156543.03392804097 / 2 ** z!r}</double>" for z in range(25))

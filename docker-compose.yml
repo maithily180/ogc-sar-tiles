@@ -6,6 +6,7 @@ services:
       - "8080:8080"
     environment:
       INSTALL_EXTENSIONS: "true"
+      SKIP_DEMO_DATA: "true"
       # OGC API - Tiles is a GeoServer community module (nightly builds only)
       COMMUNITY_EXTENSIONS: "ogcapi-features,ogcapi-tiles"
       GEOSERVER_ADMIN_USER: admin

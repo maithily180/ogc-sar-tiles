@@ -36,7 +36,7 @@ def tile_3857(lon, lat, z):
     n = 2 ** z
     x = (lon + 180) / 360 * n
     y = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
-    return int(y), int(x), int((y % 1) * 256), int((x % 1) * 256)
+    return int(y), int(x), int((x % 1) * 256), int((y % 1) * 256)   # (row, col, i = x pixel, j = y pixel)
 
 
 def tile_4326(lon, lat, z):

@@ -102,13 +102,13 @@ B=http://localhost:8081/geoserver
 curl "$B/gwc/service/wmts?service=WMTS&request=GetCapabilities&version=1.0.0"
 curl -o tile.png "$B/gwc/service/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=bhoonidhi:wschange_c95_c97&style=&format=image/png&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=464&tilecol=737"
 # GetFeatureInfo: a point (79.179 E, 16.546 N) that is land in cycle 95 and water in cycle 97 returns GRAY_INDEX 2 on ws_c97
-curl "$B/gwc/service/wmts?service=WMTS&request=GetFeatureInfo&version=1.0.0&layer=bhoonidhi:ws_c97&style=&format=image/png&infoformat=application/json&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:14&tilerow=7428&tilecol=11795&i=67&j=135"
+curl "$B/gwc/service/wmts?service=WMTS&request=GetFeatureInfo&version=1.0.0&layer=bhoonidhi:ws_c97&style=&format=image/png&infoformat=application/json&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:14&tilerow=7428&tilecol=11795&i=135&j=67"
 curl "$B/ogc/tiles/v1/collections?f=application/json"
 curl -o t2.png "$B/ogc/tiles/v1/collections/bhoonidhi:ws_c97/map/tiles/EPSG:900913/EPSG:900913:10/464/737?f=image/png"
 ```
 
 Evidence and analysis: [docs/GAP.md](docs/GAP.md) (gap, measured bytes), [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (standards checks;
-`scripts/validate_wmts_schema.py`, `scripts/measure_tiles.py`). Demo script: [docs/DEMO.md](docs/DEMO.md).
+`scripts/validate_wmts_schema.py`, `scripts/measure_tiles.py`). Step-by-step demo (copy-paste): [DEMO_STEPS.md](DEMO_STEPS.md); short outline: [docs/DEMO.md](docs/DEMO.md).
 
 ## 5. Data
 
