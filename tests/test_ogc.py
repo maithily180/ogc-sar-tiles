@@ -14,7 +14,9 @@ from owslib.wmts import WebMapTileService
 BASE = os.getenv("BASE_URL", "http://localhost:8080/geoserver")
 WMTS = f"{BASE}/gwc/service/wmts"
 API = f"{BASE}/ogc/tiles/v1"
-LAYERS = ["bhoonidhi:ws_c95", "bhoonidhi:ws_c96", "bhoonidhi:ws_c97", "bhoonidhi:wschange_c95_c97"]
+LAYERS = ["bhoonidhi:ws_c95", "bhoonidhi:ws_c96", "bhoonidhi:ws_c97", "bhoonidhi:wschange_c95_c97",
+          "bhoonidhi:bs_hh_c95", "bhoonidhi:bs_hh_c96", "bhoonidhi:bs_hh_c97",
+          "bhoonidhi:bs_hv_c95", "bhoonidhi:bs_hv_c96", "bhoonidhi:bs_hv_c97"]
 NS = {"wmts": "http://www.opengis.net/wmts/1.0", "ows": "http://www.opengis.net/ows/1.1"}
 PNG = b"\x89PNG"
 
@@ -122,6 +124,22 @@ def test_wmts_getfeatureinfo_change_layer():
     assert frac("bhoonidhi:ws_c97", GAINED_PT, 2) >= 0.5
     assert frac("bhoonidhi:wschange_c95_c97", GAINED_PT, 2) >= 0.5   # class 2 = water gained
     assert frac("bhoonidhi:wschange_c95_c97", WATER_PT, 1) >= 0.3    # class 1 = stable water
+
+
+def mean_value(layer, pt, n=2):
+    vals = [fi(layer, pt[0] + dx * STEP, pt[1] + dy * STEP)
+            for dx in range(-n, n + 1) for dy in range(-n, n + 1)]
+    vals = [v for v in vals if v is not None]
+    return sum(vals) / len(vals)
+
+
+@pytest.mark.parametrize("layer", ["bhoonidhi:bs_hh_c95", "bhoonidhi:bs_hh_c96", "bhoonidhi:bs_hh_c97",
+                                   "bhoonidhi:bs_hv_c97"])
+def test_wmts_getfeatureinfo_backscatter_db(layer):
+    """Gamma-0 in dB: open water (specular) is much darker than land, and values are plausible dB."""
+    water, land = mean_value(layer, WATER_PT), mean_value(layer, LAND_PT)
+    assert -35 < water < 0 and -35 < land < 0
+    assert water < land - 4
 
 
 def test_wmts_exception_report():

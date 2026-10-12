@@ -9,7 +9,7 @@ No official OGC CITE / TEAM Engine run was done; this is spec-driven checking pl
 |---|---|
 | `GetCapabilities` returns a Capabilities document | `ServiceType OGC WMTS 1.0.0`, version `1.0.0`; operations advertised: GetCapabilities, GetTile, GetFeatureInfo. Tested. |
 | Capabilities validates against the OGC schema | Validated with lxml against `schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd`. **180 errors, all one pattern:** `MaxTileRow` / `MaxTileCol` = `0` where the XSD types them `xs:positiveInteger` (single-tile levels). No structural or missing-element errors. Treated as an implementation/schema mismatch in GeoServer/GeoWebCache, not fixable here. |
-| `GetTile`, KVP encoding | Tested for 4 layers x EPSG:3857, EPSG:900913, EPSG:4326 (12 cases). |
+| `GetTile`, KVP encoding | Tested for 10 layers x EPSG:3857, EPSG:900913, EPSG:4326 (30 cases). |
 | `GetTile`, RESTful encoding | Tested. |
 | `GetFeatureInfo` | Tested: returns `GRAY_INDEX` class values (0 / 2 for water spread; 1 / 2 / 3 for the change layer); formats `text/plain`, `application/vnd.ogc.gml`, `text/xml`, `application/json`. |
 | Tile matrix sets | `EPSG:3857` (25 levels, `urn:ogc:def:crs:EPSG::3857`), `EPSG:4326` (22 levels), and the legacy `EPSG:900913`. Tested. |
@@ -26,7 +26,7 @@ No official OGC CITE / TEAM Engine run was done; this is spec-driven checking pl
 |---|---|
 | Landing page with `conformance` and `data` links | Tested. |
 | `/conformance` lists tiles classes | Tested. |
-| `/collections` lists the four layers | Tested. |
+| `/collections` lists all ten layers | Tested. |
 | Tilesets per collection | `/collections/{id}/map/tiles` lists tilesets with `dataType: map`. Tested. |
 | Tile matrix sets | `/tileMatrixSets` includes WebMercatorQuad, EPSG:900913, EPSG:4326. Tested. |
 | Tile retrieval | `/collections/{id}/map/tiles/{tmsId}/{tileMatrix}/{row}/{col}` returns PNG. Tested. |

@@ -17,7 +17,7 @@
 <div id="map"></div>
 <div class="panel">
   <b>ISRO EOS-04 via OGC WMTS</b><br>
-  <small>Nagarjuna Sagar, Aug-Sep 2026 (Bhoonidhi EOS-04 SAR MRS water spread). Click the map for pixel values (WMTS GetFeatureInfo).</small><br>
+  <small>Nagarjuna Sagar, Aug-Sep 2026 (Bhoonidhi EOS-04 SAR MRS: backscatter mosaic + water spread). Click the map for pixel values (WMTS GetFeatureInfo).</small><br>
   Server: <input id="base" size="26"><button onclick="load()">Load</button>
   <div id="value"></div>
   <code id="url"></code>
@@ -25,9 +25,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
   const LAYERS = {
-    'Water spread, cycle 95 (7-23 Aug 2026)': 'bhoonidhi:ws_c95',
-    'Water spread, cycle 96 (24 Aug-9 Sep)': 'bhoonidhi:ws_c96',
-    'Water spread, cycle 97 (10-26 Sep)': 'bhoonidhi:ws_c97',
+    'Backscatter HH (dB), cycle 95 (7-23 Aug)': 'bhoonidhi:bs_hh_c95',
+    'Backscatter HH (dB), cycle 96 (24 Aug-9 Sep)': 'bhoonidhi:bs_hh_c96',
+    'Backscatter HH (dB), cycle 97 (10-26 Sep)': 'bhoonidhi:bs_hh_c97',
+    'Backscatter HV (dB), cycle 97': 'bhoonidhi:bs_hv_c97',
+    'Water spread, cycle 95': 'bhoonidhi:ws_c95',
+    'Water spread, cycle 96': 'bhoonidhi:ws_c96',
+    'Water spread, cycle 97': 'bhoonidhi:ws_c97',
     'Water change, cycle 95 to 97': 'bhoonidhi:wschange_c95_c97',
   };
   const MEANING = {   // EOS-04 coding / derived change classes
@@ -80,7 +84,9 @@
       const f = (await r.json()).features[0];
       const v = f ? Number(f.properties.GRAY_INDEX) : null;
       const m = MEANING[active._layerName] || MEANING.default;
-      out.textContent = v === null ? 'No data here' : `Value ${v}${m[v] ? ' = ' + m[v] : ''}`;
+      out.textContent = v === null ? 'No data here'
+        : active._layerName.includes(':bs_') ? `${v.toFixed(1)} dB`
+        : `Value ${v}${m[v] ? ' = ' + m[v] : ''}`;
     } catch (err) { out.textContent = 'GetFeatureInfo failed'; }
   });
   load();

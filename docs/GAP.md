@@ -47,39 +47,43 @@ these SAR-derived Bhoonidhi products.
 ## Gap statement
 
 > Open SAR-derived products distributed through Bhoonidhi are large tiled GeoTIFFs reachable only by login +
-> whole-file download (STAC for discovery, no data service). Their only map view is an authenticated internal
-> viewer. A developer cannot load them as a tile layer in QGIS or a web map. This project adds a standards-based,
-> public, cached tile interface: WMTS 1.0.0 and OGC API - Tiles.
+> whole-file download (STAC for discovery, no data service). The backscatter mosaic alone is ~555 MB per tile per date.
+> Their only map view is an authenticated internal viewer. A developer cannot load them as a tile layer in QGIS or a
+> web map. This project adds a standards-based, public, cached tile interface: WMTS 1.0.0 and OGC API - Tiles.
 
 ## Data used in this project
 
-Real Bhoonidhi open data, downloaded through the portal cart (free registration), EOS-04 SAR MRS 1-degree tile
-**N16E079** (Nagarjuna Sagar reservoir, Telangana / Andhra Pradesh), three 17-day cycles in 2026:
+Real Bhoonidhi open data, downloaded through the portal cart (free registration): EOS-04 SAR MRS 1-degree tile
+**N16E079** (Nagarjuna Sagar reservoir, Telangana / Andhra Pradesh), three 17-day cycles in 2026, two products each:
 
-| Cycle | Dates | Product | Water pixels |
-|---|---|---|---|
-| 95 | 07-Aug to 23-Aug-2026 | WATER-SPREAD (L3 GEOPHYSICAL-PARAMETER) | 331,161 |
-| 96 | 24-Aug to 09-Sep-2026 | WATER-SPREAD | 467,381 |
-| 97 | 10-Sep to 26-Sep-2026 | WATER-SPREAD | 685,075 |
+| Cycle | Dates | Water spread `J1G0WSHTD` (zip) | Backscatter mosaic `FIGC00ZTD` (zip) | Water pixels |
+|---|---|---|---|---|
+| 95 | 07-Aug to 23-Aug-2026 | 0.26 MB | 554.6 MB | 331,161 |
+| 96 | 24-Aug to 09-Sep-2026 | 0.50 MB | 554.6 MB | 467,381 |
+| 97 | 10-Sep to 26-Sep-2026 | 0.23 MB | 557.0 MB | 685,075 |
 
-Each is a 6112 x 6112 px EPSG:4326 GeoTIFF (~18 m), values 0 land, 2 water, 3 background (see the product `.meta`).
-Download size: water-spread zips are 0.26, 0.50 and 0.23 MB (9.35 MB unzipped each); the backscatter mosaic zips
-(`FIGC00ZTD`) are 100 MB+ each. An area of interest needs one full tile per date either way.
+- **Water spread** (L3 GEOPHYSICAL-PARAMETER): 6112 x 6112 px EPSG:4326 GeoTIFF (~18 m, 9.35 MB unzipped), values
+  0 land, 2 water, 3 background (see the `.meta`).
+- **Backscatter** (`INDIA-MOSAIC-ARD`, the NRB India mosaic): HH and HV bands as 16-bit DN plus local incidence angle,
+  area, date and mask rasters. `product.xml` documents Gamma-0 dB = `10*log10(DN^2) - 67.139999`, which the build script
+  applies. Resulting HH medians sit near -8 dB over land and well below that over open water.
 
 ## Measured
 
 Tiles needed to view the Nagarjuna Sagar area (79.0-79.5 E, 16.3-16.9 N, ~50 x 66 km) through the service
-(PNG, EPSG:3857, measured 2026-10-12):
+(PNG, EPSG:3857, measured 2026-10-12, `scripts/measure_tiles.py`):
 
-| Zoom | Layers | Tiles | Bytes |
-|---|---|---|---|
-| 9 | 1 date | 4 | 2.6 KB |
-| 9 | 3 dates | 12 | 8.7 KB |
-| 10 | 1 date | 6 | 4.7 KB |
-| 10 | 3 dates | 18 | 17 KB |
-| 11 | 1 date | 16 | 12.6 KB |
-| 11 | 3 dates | 48 | 45 KB |
+| Zoom | Layers | Tiles | Water spread | HH backscatter |
+|---|---|---|---|---|
+| 9 | 1 date | 4 | 2.6 KB | 133 KB |
+| 9 | 3 dates | 12 | 8.7 KB | 405 KB |
+| 10 | 1 date | 6 | 4.7 KB | 291 KB |
+| 10 | 3 dates | 18 | 17 KB | 885 KB |
+| 11 | 1 date | 16 | 12.6 KB | 935 KB |
+| 11 | 3 dates | 48 | 45 KB | 2.8 MB |
 
-Versus downloading the three water-spread zips (~1.0 MB) and processing them locally; for backscatter the ratio is far
-larger. Honest reading: the saving for water spread is modest in absolute terms; the real gain is that **no GIS
-processing, unzipping or format knowledge is needed**, and that the data becomes consumable by any OGC client.
+Versus downloading the products: the three backscatter zips are **1.59 GiB**; at zoom 10 the same area for the same
+three dates is **0.9 MB of tiles, about 1,800 times less** (about 570 times less at zoom 11), and needs no unzipping,
+georeferencing or styling. For water spread alone the saving is modest in absolute terms (three zips total ~1 MB);
+there the gain is that **no GIS processing or format knowledge is needed** (the 0 / 2 / 3 coding is only in the
+`.meta`), and that the data becomes consumable by any OGC client.

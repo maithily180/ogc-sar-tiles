@@ -4,11 +4,13 @@ Put the downloaded zips (or already extracted folders) in data/bhoonidhi/ and ru
 
     python scripts/build_bhoonidhi_layers.py
 
-Per EOS-04 SAR MRS 1x1-degree tile it writes data/cogs/<layer>.tif and regenerates layers.json:
-  * ws_c<cycle>            water spread (GEOPHYSICAL-PARAMETER WATER-SPREAD: 0 land, 2 water, 3 background)
-  * bs_c<cycle>            backscatter mosaic (converted to dB, see --bs-mode)
+Per EOS-04 SAR MRS 1-degree tile and cycle it writes data/cogs/<layer>.tif and regenerates layers.json:
+  * ws_c<cycle>            WATER-SPREAD product (J1G0WSHTD): 0 land, 2 water, 3 background
+  * bs_hh_c<cycle>, bs_hv_c<cycle>
+                           INDIA-MOSAIC-ARD backscatter (FIGC00ZTD), Gamma-0 in dB. The product's own
+                           product.xml gives the conversion: 10*log10(DN^2) - 67.139999
   * wschange_c<a>_c<b>     derived: water change between the first and last cycle
-                            (1 stable water, 2 gained, 3 lost)
+                           (1 stable water, 2 gained, 3 lost)
 """
 import os
 
@@ -17,6 +19,7 @@ for _v in ("PROJ_LIB", "PROJ_DATA"):  # a system PROJ (e.g. PostGIS) can shadow 
 
 import argparse
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -25,9 +28,10 @@ import rasterio
 from rasterio.io import MemoryFile
 from rasterio.shutil import copy as rio_copy
 
-WATER_ND = 3      # ImageBackground in the product meta
+WATER_ND = 3        # ImageBackground in the water-spread meta
 CHANGE_ND = 255
-BS_ND = -9999.0
+DB_ND = -9999.0
+DEFAULT_CAL = 67.139999   # used only if product.xml has no BackscatterConversionEq
 
 
 def read_meta(path: Path) -> dict:
@@ -40,18 +44,28 @@ def read_meta(path: Path) -> dict:
 
 
 def discover(root: Path):
-    """Extract zips next to themselves and return [(meta, tif_path)]."""
+    """Extract zips next to themselves; return [(meta, product_dir, stem)] for every product with a .meta file."""
     for z in sorted(root.glob("*.zip")):
         d = root / z.stem
         if not d.exists():
+            print(f"unzipping {z.name} ...")
             with zipfile.ZipFile(z) as zf:
                 zf.extractall(d)
     prods = []
-    for meta in sorted(root.glob("*/*.meta")):
-        tif = meta.with_suffix(".tif")
-        if tif.exists():
-            prods.append((read_meta(meta), tif))
+    for meta in sorted(root.rglob("*.meta")):
+        prods.append((read_meta(meta), meta.parent, meta.stem))
     return prods
+
+
+def calibration_constant(prod_dir: Path) -> float:
+    """Parse '10*log10(DN^2) - 67.139999' from the product's own product.xml."""
+    xml = prod_dir / "product.xml"
+    if xml.exists():
+        m = re.search(r"BackscatterConversionEq[^>]*>\s*10\*log10\(DN\^2\)\s*-\s*([0-9.]+)",
+                      xml.read_text(errors="replace"))
+        if m:
+            return float(m.group(1))
+    return DEFAULT_CAL
 
 
 def write_cog(path: Path, data: np.ndarray, profile: dict, nodata, resampling: str):
@@ -67,17 +81,12 @@ def write_cog(path: Path, data: np.ndarray, profile: dict, nodata, resampling: s
     print(f"wrote {path} ({data.shape[1]}x{data.shape[0]})")
 
 
-def span(m):  # '07-AUG-2026'/'23AUG2026' style dates -> short label
-    return f"{m['StartDate'].replace('-', ' ').title()} to {m['EndDate'].replace('-', ' ').title()}" if " " in m["EndDate"] or "-" in m["EndDate"] else f"{m['StartDate'].title()} to {m['EndDate'].title()}"
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", type=Path, default=Path("data/bhoonidhi"))
     ap.add_argument("--out", type=Path, default=Path("data/cogs"))
     ap.add_argument("--manifest", type=Path, default=Path("layers.json"))
-    ap.add_argument("--bs-mode", choices=["auto", "db", "linear"], default="auto",
-                    help="how to interpret backscatter DN; 'auto' reads the product meta")
+    ap.add_argument("--pols", nargs="+", default=["HH", "HV"], help="backscatter polarisations to publish")
     a = ap.parse_args()
 
     prods = discover(a.src)
@@ -85,13 +94,13 @@ def main():
         raise SystemExit(f"no products found in {a.src}")
     layers, water = [], {}
 
-    for meta, tif in sorted(prods, key=lambda p: int(p[0]["Cycle_Number"])):
+    for meta, pdir, stem in sorted(prods, key=lambda p: (int(p[0]["Cycle_Number"]), p[0].get("ProdCode", ""))):
         cyc = int(meta["Cycle_Number"])
-        desc = meta.get("GPDescription", "")
+        code = meta.get("ProdCode", "")
         label = f"cycle {cyc}, {meta['StartDate']} to {meta['EndDate']}"
-        with rasterio.open(tif) as src:
-            arr, profile = src.read(1), src.profile.copy()
-        if desc == "WATER-SPREAD":
+        if code == "J1G0WSHTD":                      # water spread
+            with rasterio.open(pdir / f"{stem}.tif") as src:
+                arr, profile = src.read(1), src.profile.copy()
             water[cyc] = (arr, profile)
             name = f"ws_c{cyc}"
             write_cog(a.out / f"{name}.tif", arr, profile, WATER_ND, "NEAREST")
@@ -99,8 +108,28 @@ def main():
                            "title": f"EOS-04 water spread, {label}",
                            "abstract": f"ISRO EOS-04 SAR MRS water-spread product, tile {meta['TileId']}, {label}. "
                                        "0 land, 2 water, 3 background. Source: Bhoonidhi."})
+        elif code == "FIGC00ZTD":                    # NRB / ARD India mosaic
+            cal = calibration_constant(pdir)
+            for pol in a.pols:
+                tif = pdir / f"{stem}_{pol}.tif"
+                if not tif.exists():
+                    print(f"skip {tif.name}: not found")
+                    continue
+                with rasterio.open(tif) as src:
+                    dn, profile = src.read(1).astype("float32"), src.profile.copy()
+                ok = dn > 0
+                db = np.full(dn.shape, DB_ND, "float32")
+                db[ok] = 10 * np.log10(dn[ok] ** 2) - cal
+                name = f"bs_{pol.lower()}_c{cyc}"
+                write_cog(a.out / f"{name}.tif", db, profile, DB_ND, "BILINEAR")
+                layers.append({"name": name, "file": f"{name}.tif",
+                               "style": "sar_backscatter_db" if pol == "HH" else "sar_hv_db",
+                               "title": f"EOS-04 {pol} backscatter (dB), {label}",
+                               "abstract": f"ISRO EOS-04 SAR MRS India mosaic (ARD), {pol} Gamma-0 in dB = "
+                                           f"10*log10(DN^2) - {cal}, tile {meta['TileId']}, {label}. "
+                                           "Source: Bhoonidhi."})
         else:
-            print(f"skipping {tif.name}: backscatter handled in build step 2 ({desc or meta.get('ProductType')})")
+            print(f"skipping {stem}: unknown product code {code}")
 
     if len(water) >= 2:
         c0, c1 = min(water), max(water)
@@ -117,11 +146,11 @@ def main():
         layers.append({"name": name, "file": f"{name}.tif", "style": "water_change",
                        "title": f"Water change, cycle {c0} to {c1}",
                        "abstract": f"Derived from EOS-04 water spread: 1 stable water, 2 gained, 3 lost between "
-                                   f"cycle {c0} and cycle {c1}. Gained = {int((ch == 2).sum())} px, lost = {int((ch == 3).sum())} px."})
-        print(f"change c{c0}->c{c1}: stable={int((ch == 1).sum())} gained={int((ch == 2).sum())} lost={int((ch == 3).sum())}")
+                                   f"cycle {c0} and cycle {c1}."})
+        print(f"change c{c0}->c{c1}: stable={int((ch == 1).sum())} gained={int((ch == 2).sum())} "
+              f"lost={int((ch == 3).sum())}")
 
-    manifest = {"workspace": "bhoonidhi", "layers": layers}
-    a.manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    a.manifest.write_text(json.dumps({"workspace": "bhoonidhi", "layers": layers}, indent=2), encoding="utf-8")
     print(f"wrote {a.manifest} with {len(layers)} layers")
 
 

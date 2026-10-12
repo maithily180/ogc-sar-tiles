@@ -2,6 +2,20 @@
   "workspace": "bhoonidhi",
   "layers": [
     {
+      "name": "bs_hh_c95",
+      "file": "bs_hh_c95.tif",
+      "style": "sar_backscatter_db",
+      "title": "EOS-04 HH backscatter (dB), cycle 95, 07-AUG-2026 to 23AUG2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HH Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 95, 07-AUG-2026 to 23AUG2026. Source: Bhoonidhi."
+    },
+    {
+      "name": "bs_hv_c95",
+      "file": "bs_hv_c95.tif",
+      "style": "sar_hv_db",
+      "title": "EOS-04 HV backscatter (dB), cycle 95, 07-AUG-2026 to 23AUG2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HV Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 95, 07-AUG-2026 to 23AUG2026. Source: Bhoonidhi."
+    },
+    {
       "name": "ws_c95",
       "file": "ws_c95.tif",
       "style": "water_class",
@@ -9,11 +23,39 @@
       "abstract": "ISRO EOS-04 SAR MRS water-spread product, tile N16E079, cycle 95, 07-AUG-2026 to 23AUG2026. 0 land, 2 water, 3 background. Source: Bhoonidhi."
     },
     {
+      "name": "bs_hh_c96",
+      "file": "bs_hh_c96.tif",
+      "style": "sar_backscatter_db",
+      "title": "EOS-04 HH backscatter (dB), cycle 96, 24-AUG-2026 to 09SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HH Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 96, 24-AUG-2026 to 09SEP2026. Source: Bhoonidhi."
+    },
+    {
+      "name": "bs_hv_c96",
+      "file": "bs_hv_c96.tif",
+      "style": "sar_hv_db",
+      "title": "EOS-04 HV backscatter (dB), cycle 96, 24-AUG-2026 to 09SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HV Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 96, 24-AUG-2026 to 09SEP2026. Source: Bhoonidhi."
+    },
+    {
       "name": "ws_c96",
       "file": "ws_c96.tif",
       "style": "water_class",
       "title": "EOS-04 water spread, cycle 96, 24-AUG-2026 to 09SEP2026",
       "abstract": "ISRO EOS-04 SAR MRS water-spread product, tile N16E079, cycle 96, 24-AUG-2026 to 09SEP2026. 0 land, 2 water, 3 background. Source: Bhoonidhi."
+    },
+    {
+      "name": "bs_hh_c97",
+      "file": "bs_hh_c97.tif",
+      "style": "sar_backscatter_db",
+      "title": "EOS-04 HH backscatter (dB), cycle 97, 10-SEP-2026 to 26SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HH Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 97, 10-SEP-2026 to 26SEP2026. Source: Bhoonidhi."
+    },
+    {
+      "name": "bs_hv_c97",
+      "file": "bs_hv_c97.tif",
+      "style": "sar_hv_db",
+      "title": "EOS-04 HV backscatter (dB), cycle 97, 10-SEP-2026 to 26SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS India mosaic (ARD), HV Gamma-0 in dB = 10*log10(DN^2) - 67.139999, tile N16E079, cycle 97, 10-SEP-2026 to 26SEP2026. Source: Bhoonidhi."
     },
     {
       "name": "ws_c97",
@@ -27,7 +69,7 @@
       "file": "wschange_c95_c97.tif",
       "style": "water_change",
       "title": "Water change, cycle 95 to 97",
-      "abstract": "Derived from EOS-04 water spread: 1 stable water, 2 gained, 3 lost between cycle 95 and cycle 97. Gained = 462724 px, lost = 108810 px."
+      "abstract": "Derived from EOS-04 water spread: 1 stable water, 2 gained, 3 lost between cycle 95 and cycle 97."
     }
   ]
 }
