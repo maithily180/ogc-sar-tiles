@@ -1,6 +1,7 @@
 data/raw/
 data/real/
 data/cogs/
+data/bhoonidhi/
 __pycache__/
 .pytest_cache/
 *.pyc

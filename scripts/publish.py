@@ -73,6 +73,14 @@ def main():
                     headers={"Content-Type": "text/xml"}), ok=(200, 201), what="create gridset EPSG:3857")
     print("gridset EPSG:3857 ok")
 
+    # remove stores/tile layers that are no longer in layers.json
+    stale = s.get(f"{rest}/workspaces/{WS}/coveragestores.json").json()
+    for cs in ((stale.get("coverageStores") or {}) or {}).get("coverageStore", []) if isinstance(stale.get("coverageStores"), dict) else []:
+        if cs["name"] not in LAYERS:
+            s.delete(f"{a.url}/gwc/rest/layers/{WS}:{cs['name']}.xml")
+            s.delete(f"{rest}/workspaces/{WS}/coveragestores/{cs['name']}?recurse=true&purge=none")
+            print(f"removed stale layer {cs['name']}")
+
     for layer, (fname, style, title, abstract) in LAYERS.items():
         # style
         sld = (a.styles / f"{style}.sld").read_text(encoding="utf-8")

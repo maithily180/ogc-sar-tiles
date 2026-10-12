@@ -1,17 +1,33 @@
 {
   "workspace": "bhoonidhi",
   "layers": [
-    {"name": "sar_dry_db", "file": "sar_dry_db.tif", "style": "sar_backscatter_db",
-     "title": "SAR backscatter VV, dry season (dB)",
-     "abstract": "Sentinel-1 RTC gamma0 VV in dB, 25 Dec 2024, relative orbit 19. Demo stand-in for Bhoonidhi SAR products."},
-    {"name": "sar_monsoon_db", "file": "sar_monsoon_db.tif", "style": "sar_backscatter_db",
-     "title": "SAR backscatter VV, monsoon (dB)",
-     "abstract": "Sentinel-1 RTC gamma0 VV in dB, 27 Aug 2024, relative orbit 19."},
-    {"name": "sar_change_db", "file": "sar_change_db.tif", "style": "sar_change_db",
-     "title": "SAR backscatter change, monsoon minus dry (dB)",
-     "abstract": "Difference of the two scenes in dB. Negative (blue) = darker in monsoon, e.g. more open water."},
-    {"name": "water_spread", "file": "water_spread.tif", "style": "water_class",
-     "title": "Water spread",
-     "abstract": "Binary water class, 0 land / 1 water: JRC Global Surface Water occurrence >= 50%."}
+    {
+      "name": "ws_c95",
+      "file": "ws_c95.tif",
+      "style": "water_class",
+      "title": "EOS-04 water spread, cycle 95, 07-AUG-2026 to 23AUG2026",
+      "abstract": "ISRO EOS-04 SAR MRS water-spread product, tile N16E079, cycle 95, 07-AUG-2026 to 23AUG2026. 0 land, 2 water, 3 background. Source: Bhoonidhi."
+    },
+    {
+      "name": "ws_c96",
+      "file": "ws_c96.tif",
+      "style": "water_class",
+      "title": "EOS-04 water spread, cycle 96, 24-AUG-2026 to 09SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS water-spread product, tile N16E079, cycle 96, 24-AUG-2026 to 09SEP2026. 0 land, 2 water, 3 background. Source: Bhoonidhi."
+    },
+    {
+      "name": "ws_c97",
+      "file": "ws_c97.tif",
+      "style": "water_class",
+      "title": "EOS-04 water spread, cycle 97, 10-SEP-2026 to 26SEP2026",
+      "abstract": "ISRO EOS-04 SAR MRS water-spread product, tile N16E079, cycle 97, 10-SEP-2026 to 26SEP2026. 0 land, 2 water, 3 background. Source: Bhoonidhi."
+    },
+    {
+      "name": "wschange_c95_c97",
+      "file": "wschange_c95_c97.tif",
+      "style": "water_change",
+      "title": "Water change, cycle 95 to 97",
+      "abstract": "Derived from EOS-04 water spread: 1 stable water, 2 gained, 3 lost between cycle 95 and cycle 97. Gained = 462724 px, lost = 108810 px."
+    }
   ]
 }

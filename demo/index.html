@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SAR Tiles WMTS Demo</title>
+<title>EOS-04 Tiles Demo</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <style>
   html, body, #map { height: 100%; margin: 0; }
@@ -16,8 +16,8 @@
 <body>
 <div id="map"></div>
 <div class="panel">
-  <b>SAR + water via OGC WMTS</b><br>
-  <small>Hirakud reservoir, Odisha. Click the map for pixel values (WMTS GetFeatureInfo).</small><br>
+  <b>ISRO EOS-04 via OGC WMTS</b><br>
+  <small>Nagarjuna Sagar, Aug-Sep 2026 (Bhoonidhi EOS-04 SAR MRS water spread). Click the map for pixel values (WMTS GetFeatureInfo).</small><br>
   Server: <input id="base" size="26"><button onclick="load()">Load</button>
   <div id="value"></div>
   <code id="url"></code>
@@ -25,12 +25,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
   const LAYERS = {
-    'SAR VV dry season (dB)': 'bhoonidhi:sar_dry_db',
-    'SAR VV monsoon (dB)': 'bhoonidhi:sar_monsoon_db',
-    'Change: monsoon - dry (dB)': 'bhoonidhi:sar_change_db',
-    'Water spread (JRC)': 'bhoonidhi:water_spread',
+    'Water spread, cycle 95 (7-23 Aug 2026)': 'bhoonidhi:ws_c95',
+    'Water spread, cycle 96 (24 Aug-9 Sep)': 'bhoonidhi:ws_c96',
+    'Water spread, cycle 97 (10-26 Sep)': 'bhoonidhi:ws_c97',
+    'Water change, cycle 95 to 97': 'bhoonidhi:wschange_c95_c97',
   };
-  const map = L.map('map').setView([21.5, 83.8], 10);
+  const MEANING = {   // EOS-04 coding / derived change classes
+    'bhoonidhi:wschange_c95_c97': { 0: 'no water', 1: 'stable water', 2: 'water gained', 3: 'water lost' },
+    default: { 0: 'land / no water', 2: 'water' },
+  };
+  const map = L.map('map').setView([16.6, 79.2], 10);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
   let overlays = {}, control, active = null, base = '';
@@ -52,11 +56,11 @@
       overlays[title] = L.tileLayer(wmtsUrl(base, layer), { maxZoom: 18, opacity: 0.9 });
       overlays[title]._layerName = layer;
     }
-    active = overlays['SAR VV dry season (dB)'];
+    active = overlays['Water change, cycle 95 to 97'];
     active.addTo(map);
     control = L.control.layers(overlays, null, { collapsed: false }).addTo(map);
     map.on('baselayerchange', e => { active = e.layer; });
-    document.getElementById('url').textContent = wmtsUrl(base, 'bhoonidhi:water_spread');
+    document.getElementById('url').textContent = wmtsUrl(base, 'bhoonidhi:ws_c97');
   }
 
   // WMTS GetFeatureInfo on click
@@ -74,7 +78,9 @@
     try {
       const r = await fetch(`${base}/gwc/service/wmts?${q}`);
       const f = (await r.json()).features[0];
-      out.textContent = f ? `Value: ${Number(f.properties.GRAY_INDEX).toFixed(2)}` : 'No data here';
+      const v = f ? Number(f.properties.GRAY_INDEX) : null;
+      const m = MEANING[active._layerName] || MEANING.default;
+      out.textContent = v === null ? 'No data here' : `Value ${v}${m[v] ? ' = ' + m[v] : ''}`;
     } catch (err) { out.textContent = 'GetFeatureInfo failed'; }
   });
   load();

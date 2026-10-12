@@ -1,28 +1,24 @@
-# SAR Tiles over OGC WMTS and OGC API – Tiles
+# EOS-04 Tiles over OGC WMTS and OGC API – Tiles
 
-A standards-based tile service (**WMTS 1.0.0** and **OGC API – Tiles**) for SAR-derived raster products,
-built on GeoServer + GeoWebCache, aimed at the gap in ISRO's [Bhoonidhi](https://bhoonidhi.nrsc.gov.in) open data.
+A standards-based tile service (**WMTS 1.0.0** and **OGC API – Tiles**) over ISRO EOS-04 SAR-derived products from
+[Bhoonidhi](https://bhoonidhi.nrsc.gov.in), built on GeoServer + GeoWebCache.
 Mid-Sem practical, CyberGIS (M26GS2.402).
 
-![Dry, monsoon, change and water layers served as WMTS tiles](docs/tiles_overview.png)
+![EOS-04 water spread at Nagarjuna Sagar for three cycles, and the derived change layer, served as WMTS tiles](docs/tiles_overview.png)
 
-*Clockwise from top-left: SAR VV dry season, SAR VV monsoon, water spread (JRC), change (monsoon minus dry; blue =
-darker = more open water). Hirakud reservoir and the Mahanadi, Odisha. All four are tiles fetched through WMTS.*
-
-> **Data status:** the demo serves **real open data with no login**: Sentinel-1 RTC backscatter (a mission Bhoonidhi
-> lists as open data) and JRC Global Surface Water. Bhoonidhi's EOS-04 tiles need a Bhoonidhi account to download; the
-> same pipeline ingests them (not yet run on EOS-04 files). See [docs/GAP.md](docs/GAP.md).
+*Nagarjuna Sagar reservoir (EOS-04 tile N16E079), Aug–Sep 2026. Top-left to bottom-right: water spread for cycles 95,
+96 and 97, then the change layer (dark blue = water gained, orange = lost). Every panel is a tile fetched through WMTS.*
 
 ## Proposal vs delivered
 
 | Proposal | Delivered |
 |---|---|
 | OGC WMTS 1.0.0 and OGC API – Tiles with GeoServer | Same: GeoServer + GeoWebCache + `ogcapi-tiles` module |
-| COG conversion, mosaic, styled (backscatter in dB, water as class map), tile cache | Same: `build_layers.py` and `publish.py`; dB ramp, class style, cached tiles |
-| `GetCapabilities`, `GetTile`, `GetFeatureInfo`; EPSG:3857 and EPSG:4326 | Same, plus `EPSG:900913` alias; all tested |
+| EOS-04 water-spread tiles from Bhoonidhi | Real Bhoonidhi tiles: tile N16E079, three 17-day cycles in 2026 |
+| COG conversion, mosaic, styled map tiles, tile cache | Same: `build_bhoonidhi_layers.py` + `publish.py`; class styles; cached tiles |
+| `GetCapabilities`, `GetTile`, `GetFeatureInfo`; EPSG:3857 and EPSG:4326 | Same, plus the `EPSG:900913` alias; all tested |
 | OGC API – Tiles `/collections` and tiles | Same; tiles live under `/collections/{id}/map/tiles/...` (raster layers are map tilesets) |
-| Input: EOS-04 ScanSAR NRB and water-spread tiles | Demo input: Sentinel-1 RTC + JRC water (open, scripted download); EOS-04 tiles use the same pipeline |
-| (not in proposal) | Dry / monsoon / change layers, read-only gateway, 28 live tests |
+| (not in proposal) | Derived water-change layer, read-only gateway, 28 live tests |
 
 ## 1. Gap identified
 
@@ -32,22 +28,22 @@ darker = more open water). Hirakud reservoir and the Mahanadi, Odisha. All four 
 | API: STAC search + `GET /download`, login, rate limits | Any WMTS / OGC API – Tiles / WCS / WFS on open products |
 | Vista viewer: browsing inside the portal | A public, documented, cacheable standards endpoint |
 
-- Open EOS-04 products (NRB mosaic, water spread) are **1°×1° GeoTIFF tiles at ~33 m**; to view an area a user
-  downloads many large files and styles them locally.
-- The Bhoonidhi API is STAC discovery + download; no OGC data service
+- EOS-04 products are **1°×1° GeoTIFF tiles** (6112 × 6112 px, ~18 m). To see one reservoir on one date a user
+  downloads a full tile (9 MB for water spread, 100 MB+ for the backscatter mosaic) and styles it locally; comparing
+  three dates means three tiles.
+- The Bhoonidhi API is STAC discovery + download, with no OGC data service
   ([API docs](https://bhoonidhi.nrsc.gov.in/bhoonidhi-api/)).
 - **Counter-evidence, stated openly:** Vista's own scripts load imagery as WMS, with layer URLs returned by an
   authenticated backend (`POST /vista/Vista`). So an *internal* WMS exists; what is missing is a **public, documented,
   cacheable WMTS / OGC API – Tiles**.
-- Bhuvan: ~8,900 WMS layers checked, **0** SAR/EOS/Sentinel layers; its WMTS `GetCapabilities` returned HTTP 400
-  on 2026-10-11.
+- Bhuvan: ~8,900 WMS layers checked, **0** SAR/EOS layers; its WMTS `GetCapabilities` returned HTTP 400 on 2026-10-11.
 
-Full dated evidence and what is **not verified** (Vista URLs without a token): [docs/GAP.md](docs/GAP.md).
+Dated evidence and what is **not verified** (Vista WMS URLs without a token): [docs/GAP.md](docs/GAP.md).
 
 ## 2. Service design
 
 ```
-Sentinel-1 / JRC (or Bhoonidhi tiles) --fetch + build_layers.py--> COGs (data/cogs)
+Bhoonidhi EOS-04 zips --build_bhoonidhi_layers.py--> COGs (data/cogs) + layers.json
         COGs --publish.py (REST)--> GeoServer --> WMS (source)
                                              |--> GeoWebCache --> WMTS 1.0.0
                                              '--> ogcapi-tiles --> OGC API - Tiles
@@ -56,18 +52,16 @@ Sentinel-1 / JRC (or Bhoonidhi tiles) --fetch + build_layers.py--> COGs (data/co
 
 | Layer (`bhoonidhi:`) | Content | Style |
 |---|---|---|
-| `sar_dry_db` | Sentinel-1 VV, 25 Dec 2024, dB | grayscale -25..0 dB |
-| `sar_monsoon_db` | Sentinel-1 VV, 27 Aug 2024, dB (same orbit) | grayscale |
-| `sar_change_db` | monsoon − dry, dB | blue–white–red, ±6 dB |
-| `water_spread` | JRC occurrence ≥ 50% → class 0/1 | transparent land, blue water |
+| `ws_c95`, `ws_c96`, `ws_c97` | EOS-04 water spread, cycles 95 / 96 / 97 (0 land, 2 water, 3 background) | transparent land, blue water |
+| `wschange_c95_c97` | derived: 1 stable water, 2 gained, 3 lost | light blue / dark blue / orange |
 
-Layers are declared in [layers.json](layers.json).
+Layers are declared in [layers.json](layers.json) (generated by the build script).
 
 **Implemented operations** (all covered by `tests/test_ogc.py`, **28 passing**)
 
-- **WMTS 1.0.0:** `GetCapabilities`, `GetTile` (KVP and RESTful), `GetFeatureInfo` (returns pixel values: about −19 dB
-  in the reservoir, −8 dB on land); tile matrix sets `EPSG:3857`, `EPSG:900913` (legacy alias) and `EPSG:4326`;
-  `image/png`, `image/jpeg`; OGC exception reports on bad requests.
+- **WMTS 1.0.0:** `GetCapabilities`, `GetTile` (KVP and RESTful), `GetFeatureInfo` (returns the class value);
+  tile matrix sets `EPSG:3857`, `EPSG:900913` (legacy alias) and `EPSG:4326`; `image/png`, `image/jpeg`;
+  OGC exception reports on bad requests.
 - **OGC API – Tiles** (GeoServer community module): landing page, `/conformance`, `/collections`,
   `/collections/{id}/map/tiles` (raster layers are *map* tilesets), `/tileMatrixSets`,
   `/collections/{id}/map/tiles/{tmsId}/{tileMatrix}/{row}/{col}`.
@@ -76,20 +70,20 @@ Layers are declared in [layers.json](layers.json).
 ## 3. Implementation choices
 
 - **GeoServer + GeoWebCache:** reference WMTS and tile caching; SLD styling.
-- **COG inputs:** internal tiling and overviews; nearest-neighbour overviews for the class layer, bilinear for dB.
+- **COG inputs:** internal tiling and overviews; nearest-neighbour resampling keeps class values intact.
 - **Docker Compose:** one command; the `ogcapi-tiles` community module installs at start-up.
-- **Idempotent REST publishing:** `publish.py` recreates stores so bounds and CRS follow the data (stale config
-  otherwise broke `GetFeatureInfo`).
-- **Read-only gateway (nginx):** the admin UI, REST and GWC REST are never exposed; only GET/HEAD on tile/WMS paths.
+- **Idempotent REST publishing:** `publish.py` recreates stores so bounds and CRS follow the data, and removes
+  layers that are no longer in `layers.json`.
+- **Read-only gateway (nginx):** admin UI, REST and GWC REST are never exposed; only GET/HEAD on tile/WMS paths.
 
 ## 4. Run it
 
 ```bash
 pip install -r requirements.txt
-python scripts/fetch_open_data.py            # Sentinel-1 dry + monsoon, JRC water -> data/real (no login)
-python scripts/build_layers.py               # -> data/cogs/*.tif
-docker compose up -d                          # GeoServer :8080 (first start installs extensions), gateway :8081
-python scripts/publish.py                     # styles, layers, EPSG:3857 gridset, tile cache
+# put the Bhoonidhi EOS-04 zips (E04_SAR_MRS_..._J1G0WSHTD.zip etc.) in data/bhoonidhi/
+python scripts/build_bhoonidhi_layers.py      # unzips, writes data/cogs/*.tif and layers.json
+docker compose up -d                           # GeoServer :8080 (first start installs extensions), gateway :8081
+python scripts/publish.py                      # styles, layers, EPSG:3857 gridset, tile cache
 GATEWAY_URL=http://localhost:8081 pytest -v tests
 ```
 
@@ -99,26 +93,29 @@ Then open `http://localhost:8081/demo/` or, in QGIS, add a WMTS connection to
 ```bash
 B=http://localhost:8081/geoserver
 curl "$B/gwc/service/wmts?service=WMTS&request=GetCapabilities&version=1.0.0"
-curl -o tile.png "$B/gwc/service/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=bhoonidhi:sar_change_db&style=&format=image/png&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=449&tilecol=750"
-curl "$B/gwc/service/wmts?service=WMTS&request=GetFeatureInfo&version=1.0.0&layer=bhoonidhi:sar_dry_db&style=&format=image/png&infoformat=application/json&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=449&tilecol=750&i=100&j=60"
+curl -o tile.png "$B/gwc/service/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=bhoonidhi:wschange_c95_c97&style=&format=image/png&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=464&tilecol=737"
+# GetFeatureInfo: a point (79.179 E, 16.546 N) that is land in cycle 95 and water in cycle 97 returns GRAY_INDEX 2 on ws_c97
+curl "$B/gwc/service/wmts?service=WMTS&request=GetFeatureInfo&version=1.0.0&layer=bhoonidhi:ws_c97&style=&format=image/png&infoformat=application/json&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:14&tilerow=7428&tilecol=11795&i=67&j=135"
 curl "$B/ogc/tiles/v1/collections?f=application/json"
-curl -o t2.png "$B/ogc/tiles/v1/collections/bhoonidhi:water_spread/map/tiles/EPSG:900913/EPSG:900913:10/449/750?f=image/png"
+curl -o t2.png "$B/ogc/tiles/v1/collections/bhoonidhi:ws_c97/map/tiles/EPSG:900913/EPSG:900913:10/464/737?f=image/png"
 ```
 
-Demo script: [docs/DEMO.md](docs/DEMO.md). Change the area with `--bbox W S E N` (Sentinel-1 orbit with `--orbit`).
+Demo script: [docs/DEMO.md](docs/DEMO.md).
 
-## 5. Using real Bhoonidhi EOS-04 data
+## 5. Data
 
-Register (free), download the water-spread and backscatter tiles, put them in `data/raw/`, then mosaic and convert:
-`python scripts/prepare_cogs.py --glob "data/raw/<tiles>*.tif" --out data/cogs/<layer>.tif --kind continuous|categorical`
-(add `--dn-to-db --scale <gain> --offset <offset>` for linear intensity), and list the layer in `layers.json`.
-`scripts/make_sample_data.py` generates a synthetic fallback.
+Downloaded from Bhoonidhi (free registration) through the cart: EOS-04 SAR MRS 1°×1° tile **N16E079**, product
+`J1G0WSHTD` (L3 water spread), cycles 95, 96, 97 (7 Aug – 26 Sep 2026). Raw zips are not committed (size and
+data terms); each zip contains `.tif`, `.meta` (processing metadata) and a `.jpg` preview. See
+[docs/GAP.md](docs/GAP.md) for the product table.
 
 ## 6. Known limitations
 
-- Demo data is Sentinel-1 + JRC; the EOS-04 path is built but **not yet exercised on EOS-04 files**.
+- Only the water-spread product is served so far; the EOS-04 backscatter mosaic (`FIGC00ZTD`) is not yet published.
+- One 1° tile, three dates; no time dimension (cycles are separate layers).
 - OGC API – Tiles in GeoServer is a **community module** (nightly builds); behaviour can change between releases.
-- Raster only; values only through `GetFeatureInfo`; no time dimension (dates are separate layers); two scenes only.
+- Raster only; values only through `GetFeatureInfo`. The SAR water mask is speckled, so single pixels flip between
+  water and land; tests therefore check neighbourhood fractions.
 - The first request at a new zoom renders on demand (cache not pre-seeded).
 - Behind an HTTPS tunnel, GeoServer-generated OGC API links may use `http://`; WMTS URLs are unaffected.
 - Whether Vista's WMS works without login is not verified (needs a browser).

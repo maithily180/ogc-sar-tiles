@@ -1,7 +1,9 @@
 """Live conformance smoke tests against the running service.
 
     BASE_URL=http://localhost:8080/geoserver pytest -v tests
+    GATEWAY_URL=http://localhost:8081 pytest -v tests        # also tests the read-only gateway
 """
+import math
 import os
 import xml.etree.ElementTree as ET
 
@@ -11,15 +13,39 @@ from owslib.wmts import WebMapTileService
 
 BASE = os.getenv("BASE_URL", "http://localhost:8080/geoserver")
 WMTS = f"{BASE}/gwc/service/wmts"
-LAYERS = ["bhoonidhi:sar_dry_db", "bhoonidhi:sar_monsoon_db", "bhoonidhi:sar_change_db", "bhoonidhi:water_spread"]
+API = f"{BASE}/ogc/tiles/v1"
+LAYERS = ["bhoonidhi:ws_c95", "bhoonidhi:ws_c96", "bhoonidhi:ws_c97", "bhoonidhi:wschange_c95_c97"]
 NS = {"wmts": "http://www.opengis.net/wmts/1.0", "ows": "http://www.opengis.net/ows/1.1"}
-# centre of the synthetic/real block; override for other data
-LON, LAT = float(os.getenv("TEST_LON", 83.8)), float(os.getenv("TEST_LAT", 21.5))  # Hirakud demo AOI
+PNG = b"\x89PNG"
+
+# Nagarjuna Sagar demo AOI (EOS-04 tile N16E079). Points checked against the data:
+LON, LAT = 79.2, 16.6
+WATER_PT = (79.22292, 16.96458)     # open water in cycles 95 and 97
+GAINED_PT = (79.17907, 16.54638)    # land in cycle 95, water in cycle 97
+LAND_PT = (79.8, 16.2)
 
 
 def get(url, **kw):
-    r = requests.get(url, timeout=60, **kw)
-    return r
+    return requests.get(url, timeout=60, **kw)
+
+
+def tile_3857(lon, lat, z):
+    """lon/lat -> (row, col, i, j) in the EPSG:3857 tile matrix at zoom z (256 px tiles)."""
+    n = 2 ** z
+    x = (lon + 180) / 360 * n
+    y = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
+    return int(y), int(x), int((y % 1) * 256), int((x % 1) * 256)
+
+
+def tile_4326(lon, lat, z):
+    size = 180 / 2 ** z   # GeoServer EPSG:4326 gridset: 2^(z+1) x 2^z tiles of 180/2^z degrees
+    return int((90 - lat) / size), int((lon + 180) / size)
+
+
+def gettile_params(layer, gridset, z, row, col):
+    return {"service": "WMTS", "request": "GetTile", "version": "1.0.0", "layer": layer, "style": "",
+            "format": "image/png", "tilematrixset": gridset, "tilematrix": f"{gridset}:{z}",
+            "tilerow": row, "tilecol": col}
 
 
 # ---------------- WMTS 1.0.0 ----------------
@@ -29,8 +55,7 @@ def test_wmts_getcapabilities():
     root = ET.fromstring(r.content)
     assert root.tag.endswith("Capabilities")
     ids = {e.text for e in root.iterfind(".//wmts:Layer/ows:Identifier", NS)}
-    for layer in LAYERS:
-        assert layer in ids
+    assert set(LAYERS) <= ids
     sets = {e.text for e in root.iterfind(".//wmts:TileMatrixSet/ows:Identifier", NS)}
     assert {"EPSG:3857", "EPSG:900913", "EPSG:4326"} <= sets
 
@@ -41,44 +66,62 @@ def test_wmts_owslib_parses():
 
 
 @pytest.mark.parametrize("layer", LAYERS)
-@pytest.mark.parametrize("gridset,z", [("EPSG:3857", 8), ("EPSG:900913", 6), ("EPSG:4326", 5)])
+@pytest.mark.parametrize("gridset,z", [("EPSG:3857", 10), ("EPSG:900913", 9), ("EPSG:4326", 6)])
 def test_wmts_gettile(layer, gridset, z):
-    import math
-    if gridset in ("EPSG:900913", "EPSG:3857"):
-        n = 2 ** z
-        col = int((LON + 180) / 360 * n)
-        lat_r = math.radians(LAT)
-        row = int((1 - math.asinh(math.tan(lat_r)) / math.pi) / 2 * n)
-    else:  # GeoServer EPSG:4326 gridset: 2^(z+1) x 2^z tiles of 180/2^z degrees
-        size = 180 / 2 ** z
-        col, row = int((LON + 180) / size), int((90 - LAT) / size)
-    r = get(WMTS, params={
-        "service": "WMTS", "request": "GetTile", "version": "1.0.0", "layer": layer,
-        "style": "", "format": "image/png", "tilematrixset": gridset,
-        "tilematrix": f"{gridset}:{z}", "tilerow": row, "tilecol": col})
+    if gridset == "EPSG:4326":
+        row, col = tile_4326(LON, LAT, z)
+    else:
+        row, col, _, _ = tile_3857(LON, LAT, z)
+    r = get(WMTS, params=gettile_params(layer, gridset, z, row, col))
     assert r.status_code == 200, r.text[:300]
     assert r.headers["content-type"].startswith("image/png")
-    assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert r.content[:4] == PNG
 
 
 def test_wmts_gettile_restful():
-    r = get(f"{BASE}/gwc/service/wmts/rest/bhoonidhi:water_spread/EPSG:900913/EPSG:900913:10/449/750",
+    row, col, _, _ = tile_3857(LON, LAT, 10)
+    r = get(f"{BASE}/gwc/service/wmts/rest/bhoonidhi:ws_c97/EPSG:900913/EPSG:900913:10/{row}/{col}",
             params={"format": "image/png"})
     assert r.status_code == 200
-    assert r.content[:4] == b"\x89PNG"
+    assert r.content[:4] == PNG
 
 
-def test_wmts_getfeatureinfo():
-    import math
-    z, n = 6, 2 ** 6
-    col = int((LON + 180) / 360 * n)
-    row = int((1 - math.asinh(math.tan(math.radians(LAT))) / math.pi) / 2 * n)
+def fi(layer, lon, lat, z=14):
+    row, col, i, j = tile_3857(lon, lat, z)
     r = get(WMTS, params={
-        "service": "WMTS", "request": "GetFeatureInfo", "version": "1.0.0",
-        "layer": "bhoonidhi:sar_dry_db", "style": "", "format": "image/png",
-        "infoformat": "application/json", "tilematrixset": "EPSG:900913",
-        "tilematrix": f"EPSG:900913:{z}", "tilerow": row, "tilecol": col, "i": 128, "j": 128})
+        "service": "WMTS", "request": "GetFeatureInfo", "version": "1.0.0", "layer": layer, "style": "",
+        "format": "image/png", "infoformat": "application/json", "tilematrixset": "EPSG:3857",
+        "tilematrix": f"EPSG:3857:{z}", "tilerow": row, "tilecol": col, "i": i, "j": j})
     assert r.status_code == 200, r.text[:300]
+    feats = r.json()["features"]
+    return feats[0]["properties"]["GRAY_INDEX"] if feats else None
+
+
+STEP = 0.00009  # ~10 m, about one zoom-14 tile pixel
+
+
+def frac(layer, pt, value, n=2):
+    """Share of a (2n+1)^2 sample grid around pt whose GetFeatureInfo value equals `value`.
+
+    The SAR water mask is speckled, so single pixels flip; a neighbourhood fraction is the stable check."""
+    vals = [fi(layer, pt[0] + dx * STEP, pt[1] + dy * STEP)
+            for dx in range(-n, n + 1) for dy in range(-n, n + 1)]
+    return sum(v == value for v in vals) / len(vals)
+
+
+def test_wmts_getfeatureinfo_water_values():
+    """EOS-04 water spread coding: 2 = water, 0 = land."""
+    assert frac("bhoonidhi:ws_c97", WATER_PT, 2) >= 0.5
+    assert frac("bhoonidhi:ws_c95", WATER_PT, 2) >= 0.5
+    assert frac("bhoonidhi:ws_c97", LAND_PT, 0) >= 0.9
+
+
+def test_wmts_getfeatureinfo_change_layer():
+    """The reservoir filled between cycle 95 and 97, so the gained point is mostly land -> water."""
+    assert frac("bhoonidhi:ws_c95", GAINED_PT, 0) >= 0.5
+    assert frac("bhoonidhi:ws_c97", GAINED_PT, 2) >= 0.5
+    assert frac("bhoonidhi:wschange_c95_c97", GAINED_PT, 2) >= 0.5   # class 2 = water gained
+    assert frac("bhoonidhi:wschange_c95_c97", WATER_PT, 1) >= 0.3    # class 1 = stable water
 
 
 def test_wmts_exception_report():
@@ -88,9 +131,6 @@ def test_wmts_exception_report():
 
 
 # ---------------- OGC API - Tiles ----------------
-API = f"{BASE}/ogc/tiles/v1"
-
-
 def test_ogcapi_landing_and_conformance():
     r = get(API, params={"f": "application/json"})
     assert r.status_code == 200
@@ -101,8 +141,7 @@ def test_ogcapi_landing_and_conformance():
 
 def test_ogcapi_collections_and_tilesets():
     cols = get(f"{API}/collections", params={"f": "application/json"}).json()["collections"]
-    ids = {c["id"] for c in cols}
-    assert set(LAYERS) <= ids
+    assert set(LAYERS) <= {c["id"] for c in cols}
     # raster layers are advertised as *map* tilesets (OGC API - Tiles, map tiles)
     ts = get(f"{API}/collections/{LAYERS[0]}/map/tiles", params={"f": "application/json"})
     assert ts.status_code == 200
@@ -117,42 +156,19 @@ def test_ogcapi_tilematrixsets():
 
 
 def test_ogcapi_tile():
-    import math
-    z, n = 6, 2 ** 6
-    col = int((LON + 180) / 360 * n)
-    row = int((1 - math.asinh(math.tan(math.radians(LAT))) / math.pi) / 2 * n)
-    r = get(f"{API}/collections/{LAYERS[3]}/map/tiles/EPSG:900913/EPSG:900913:{z}/{row}/{col}",
+    row, col, _, _ = tile_3857(LON, LAT, 10)
+    r = get(f"{API}/collections/{LAYERS[2]}/map/tiles/EPSG:900913/EPSG:900913:10/{row}/{col}",
             params={"f": "image/png"})
     assert r.status_code == 200
-    assert r.content[:4] == b"\x89PNG"
-
-
-def test_wmts_getfeatureinfo_returns_pixel_values():
-    """Reservoir pixel must be water (1) and darker (lower dB) than the land pixel."""
-    base = {"service": "WMTS", "request": "GetFeatureInfo", "version": "1.0.0", "style": "",
-            "format": "image/png", "infoformat": "application/json", "tilematrixset": "EPSG:3857",
-            "tilematrix": "EPSG:3857:10", "tilerow": 449, "tilecol": 750}
-
-    def val(layer, i, j):
-        r = get(WMTS, params={**base, "layer": layer, "i": i, "j": j})
-        assert r.status_code == 200
-        return r.json()["features"][0]["properties"]["GRAY_INDEX"]
-
-    if os.getenv("DEMO_DATA") == "synthetic":
-        pytest.skip("pixel positions are for the real Hirakud demo data")
-    assert val("bhoonidhi:water_spread", 100, 60) == 1
-    assert val("bhoonidhi:water_spread", 100, 180) == 0
-    assert val("bhoonidhi:sar_dry_db", 100, 60) < val("bhoonidhi:sar_dry_db", 100, 180) - 3
-    # change layer holds a monsoon-minus-dry difference, so values are small
-    assert abs(val("bhoonidhi:sar_change_db", 100, 180)) < 15
+    assert r.content[:4] == PNG
 
 
 # ---------------- WMS source + gateway ----------------
 def test_wms_source_layer_getmap():
     r = get(f"{BASE}/bhoonidhi/wms", params={
-        "service": "WMS", "version": "1.1.1", "request": "GetMap", "layers": LAYERS[3], "styles": "",
-        "srs": "EPSG:4326", "bbox": "83.5,21.2,84.1,21.8", "width": 256, "height": 256, "format": "image/png"})
-    assert r.status_code == 200 and r.content[:4] == b"\x89PNG"
+        "service": "WMS", "version": "1.1.1", "request": "GetMap", "layers": LAYERS[2], "styles": "",
+        "srs": "EPSG:4326", "bbox": "79.0,16.0,80.0,17.0", "width": 256, "height": 256, "format": "image/png"})
+    assert r.status_code == 200 and r.content[:4] == PNG
 
 
 GATEWAY = os.getenv("GATEWAY_URL")  # e.g. http://localhost:8081 (read-only proxy used for public exposure)

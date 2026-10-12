@@ -51,8 +51,17 @@ these SAR-derived Bhoonidhi products.
 > viewer. A developer cannot load them as a tile layer in QGIS or a web map. This project adds a standards-based,
 > public, cached tile interface: WMTS 1.0.0 and OGC API - Tiles.
 
-## Honest scope note
+## Data used in this project
 
-The deployed demo uses Sentinel-1 RTC + JRC Global Surface Water (open, no login) because Bhoonidhi downloads need an
-account; Bhoonidhi lists Sentinel-1 among its open missions. The identical pipeline ingests Bhoonidhi EOS-04 tiles.
-**Not verified:** a run on actual EOS-04 files.
+Real Bhoonidhi open data, downloaded through the portal cart (free registration), EOS-04 SAR MRS 1-degree tile
+**N16E079** (Nagarjuna Sagar reservoir, Telangana / Andhra Pradesh), three 17-day cycles in 2026:
+
+| Cycle | Dates | Product | Water pixels |
+|---|---|---|---|
+| 95 | 07-Aug to 23-Aug-2026 | WATER-SPREAD (L3 GEOPHYSICAL-PARAMETER) | 331,161 |
+| 96 | 24-Aug to 09-Sep-2026 | WATER-SPREAD | 467,381 |
+| 97 | 10-Sep to 26-Sep-2026 | WATER-SPREAD | 685,075 |
+
+Each is a 6112 x 6112 px EPSG:4326 GeoTIFF (~18 m), values 0 land, 2 water, 3 background (see the product `.meta`).
+Whole-file downloads of ~9 MB each (water spread) and ~100 MB+ each (backscatter mosaic); an area of interest
+needs a full tile per date. The service turns the same files into styled, cached tiles.

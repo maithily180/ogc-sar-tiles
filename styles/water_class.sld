@@ -6,14 +6,16 @@
   <NamedLayer>
     <Name>water_class</Name>
     <UserStyle>
-      <Title>Water spread classes (0 = land, 1 = water)</Title>
+      <Title>EOS-04 water spread (0 land, 2 water)</Title>
       <FeatureTypeStyle>
         <Rule>
           <RasterSymbolizer>
             <Opacity>1.0</Opacity>
             <ColorMap type="values">
               <ColorMapEntry color="#000000" quantity="0" label="Land / no water" opacity="0"/>
-              <ColorMapEntry color="#1E78FF" quantity="1" label="Water" opacity="0.85"/>
+              <ColorMapEntry color="#000000" quantity="1" label="Not observed" opacity="0"/>
+              <ColorMapEntry color="#1E5AA8" quantity="2" label="Water" opacity="0.9"/>
+              <ColorMapEntry color="#000000" quantity="3" label="Background" opacity="0"/>
             </ColorMap>
           </RasterSymbolizer>
         </Rule>

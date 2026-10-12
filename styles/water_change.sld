@@ -4,19 +4,19 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.opengis.net/sld http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd">
   <NamedLayer>
-    <Name>sar_change_db</Name>
+    <Name>water_change</Name>
     <UserStyle>
-      <Title>Backscatter change (dB), blue = darker, red = brighter</Title>
+      <Title>Water change between cycles</Title>
       <FeatureTypeStyle>
         <Rule>
           <RasterSymbolizer>
             <Opacity>1.0</Opacity>
-            <ColorMap type="ramp" extended="true">
-              <ColorMapEntry color="#2166AC" quantity="-6" label="-6 dB"/>
-              <ColorMapEntry color="#92C5DE" quantity="-3" label="-3 dB"/>
-              <ColorMapEntry color="#F7F7F7" quantity="0" label="0 dB"/>
-              <ColorMapEntry color="#F4A582" quantity="3" label="+3 dB"/>
-              <ColorMapEntry color="#B2182B" quantity="6" label="+6 dB"/>
+            <ColorMap type="values">
+              <ColorMapEntry color="#000000" quantity="0" label="No water" opacity="0"/>
+              <ColorMapEntry color="#9ECAE1" quantity="1" label="Stable water" opacity="0.85"/>
+              <ColorMapEntry color="#08519C" quantity="2" label="Water gained" opacity="0.95"/>
+              <ColorMapEntry color="#FD8D3C" quantity="3" label="Water lost" opacity="0.95"/>
+              <ColorMapEntry color="#000000" quantity="255" label="No data" opacity="0"/>
             </ColorMap>
           </RasterSymbolizer>
         </Rule>

@@ -3,4 +3,3 @@ rasterio
 requests
 OWSLib
 pytest
-scipy

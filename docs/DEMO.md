@@ -1,17 +1,19 @@
 # Live demo script (about 5 minutes)
 
-Prereq: `docker compose up -d`, `python scripts/publish.py`. Service on :8080 (direct) and :8081 (read-only gateway).
+Prereq: Docker Desktop running, `docker compose up -d`, `python scripts/publish.py` (GeoServer on :8080, gateway on :8081).
 
-1. **Problem (30 s).** Show Bhoonidhi: cart download only; STAC API = search + download. Show `docs/GAP.md` findings.
+1. **Problem (30 s).** Bhoonidhi gives whole-file download of EOS-04 tiles (9 MB water spread, 100 MB+ backscatter, per
+   tile per date) and a STAC search API. No tile endpoint a map can load. Show `docs/GAP.md`.
 2. **WMTS capabilities (30 s).**
    `curl "http://localhost:8081/geoserver/gwc/service/wmts?service=WMTS&request=GetCapabilities&version=1.0.0"`
-   Point out 4 layers and tile matrix sets EPSG:3857 / EPSG:900913 / EPSG:4326.
-3. **GetTile (30 s).** Save a tile:
-   `curl -o t.png "http://localhost:8081/geoserver/gwc/service/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=bhoonidhi:sar_change_db&style=&format=image/png&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=449&tilecol=750"`
-4. **GetFeatureInfo (30 s).** Reservoir vs land values (see README commands): about -19 dB vs -8 dB; water layer 1 vs 0.
+   Point out the layers (`ws_c95`, `ws_c96`, `ws_c97`, `wschange_c95_c97`) and the matrix sets EPSG:3857 / 900913 / 4326.
+3. **GetTile (30 s).**
+   `curl -o t.png "http://localhost:8081/geoserver/gwc/service/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=bhoonidhi:wschange_c95_c97&style=&format=image/png&tilematrixset=EPSG:3857&tilematrix=EPSG:3857:10&tilerow=464&tilecol=737"`
+4. **GetFeatureInfo (30 s).** A point that was land in cycle 95 and water in cycle 97 (79.179 E, 16.546 N) returns
+   0 on `ws_c95`, 2 on `ws_c97`, 2 on `wschange_c95_c97` (water gained). See README for the request.
 5. **QGIS (60 s).** Layer > Add Layer > WMTS: `http://localhost:8081/geoserver/gwc/service/wmts?REQUEST=GetCapabilities`;
-   add `sar_dry_db`, then `sar_change_db` on top.
-6. **OGC API - Tiles (45 s).** `.../ogc/tiles/v1/collections?f=application/json`, then a `map/tiles` tileset and one tile.
-7. **Web map (45 s).** Open `http://localhost:8081/demo/`: toggle dry / monsoon / change / water, click for values.
+   add `ws_c95`, `ws_c97` and the change layer; zoom to Nagarjuna Sagar.
+6. **OGC API - Tiles (45 s).** `.../ogc/tiles/v1/collections?f=application/json`, a `map/tiles` tileset, then one tile.
+7. **Web map (45 s).** `http://localhost:8081/demo/`: switch cycles, watch the reservoir fill, click for values.
 8. **Safety (30 s).** `curl -i http://localhost:8081/geoserver/rest/workspaces.json` returns 403: admin and REST are never exposed.
 9. **Tests (30 s).** `GATEWAY_URL=http://localhost:8081 pytest -q tests` (28 passing).
