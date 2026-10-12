@@ -13,6 +13,17 @@ darker = more open water). Hirakud reservoir and the Mahanadi, Odisha. All four 
 > lists as open data) and JRC Global Surface Water. Bhoonidhi's EOS-04 tiles need a Bhoonidhi account to download; the
 > same pipeline ingests them (not yet run on EOS-04 files). See [docs/GAP.md](docs/GAP.md).
 
+## Proposal vs delivered
+
+| Proposal | Delivered |
+|---|---|
+| OGC WMTS 1.0.0 and OGC API – Tiles with GeoServer | Same: GeoServer + GeoWebCache + `ogcapi-tiles` module |
+| COG conversion, mosaic, styled (backscatter in dB, water as class map), tile cache | Same: `build_layers.py` and `publish.py`; dB ramp, class style, cached tiles |
+| `GetCapabilities`, `GetTile`, `GetFeatureInfo`; EPSG:3857 and EPSG:4326 | Same, plus `EPSG:900913` alias; all tested |
+| OGC API – Tiles `/collections` and tiles | Same; tiles live under `/collections/{id}/map/tiles/...` (raster layers are map tilesets) |
+| Input: EOS-04 ScanSAR NRB and water-spread tiles | Demo input: Sentinel-1 RTC + JRC water (open, scripted download); EOS-04 tiles use the same pipeline |
+| (not in proposal) | Dry / monsoon / change layers, read-only gateway, 28 live tests |
+
 ## 1. Gap identified
 
 | Today | Missing |
