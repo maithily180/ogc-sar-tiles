@@ -3,3 +3,4 @@ rasterio
 requests
 OWSLib
 pytest
+lxml

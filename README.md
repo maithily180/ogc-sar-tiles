@@ -28,9 +28,13 @@ Mid-Sem practical, CyberGIS (M26GS2.402).
 | API: STAC search + `GET /download`, login, rate limits | Any WMTS / OGC API – Tiles / WCS / WFS on open products |
 | Vista viewer: browsing inside the portal | A public, documented, cacheable standards endpoint |
 
-- EOS-04 products are **1°×1° GeoTIFF tiles** (6112 × 6112 px, ~18 m). To see one reservoir on one date a user
-  downloads a full tile (9 MB for water spread, 100 MB+ for the backscatter mosaic) and styles it locally; comparing
-  three dates means three tiles.
+- EOS-04 products are **1°×1° GeoTIFF tiles** (6112 × 6112 px, ~18 m) delivered as zips containing a GeoTIFF, a `.meta`
+  file and a JPEG preview. The water-spread zips are small (0.2–0.5 MB; 9.4 MB unzipped), so for water spread the gap is
+  **interoperability, not size**: no endpoint a map or QGIS can load; the user must unzip, read the `.meta` to learn the
+  coding (0 land, 2 water, 3 background), georeference, mosaic and style it, once per date. The backscatter mosaics are
+  large (100 MB+ per zip) and make the size argument as well.
+- Measured: the same Nagarjuna Sagar area for all three dates is **17 KB of tiles at zoom 10** (45 KB at zoom 11)
+  versus ~1 MB of zips plus local processing ([docs/GAP.md](docs/GAP.md#measured)).
 - The Bhoonidhi API is STAC discovery + download, with no OGC data service
   ([API docs](https://bhoonidhi.nrsc.gov.in/bhoonidhi-api/)).
 - **Counter-evidence, stated openly:** Vista's own scripts load imagery as WMS, with layer URLs returned by an
@@ -100,7 +104,8 @@ curl "$B/ogc/tiles/v1/collections?f=application/json"
 curl -o t2.png "$B/ogc/tiles/v1/collections/bhoonidhi:ws_c97/map/tiles/EPSG:900913/EPSG:900913:10/464/737?f=image/png"
 ```
 
-Demo script: [docs/DEMO.md](docs/DEMO.md).
+Evidence and analysis: [docs/GAP.md](docs/GAP.md) (gap, measured bytes), [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (standards checks;
+`scripts/validate_wmts_schema.py`, `scripts/measure_tiles.py`). Demo script: [docs/DEMO.md](docs/DEMO.md).
 
 ## 5. Data
 
@@ -111,7 +116,7 @@ data terms); each zip contains `.tif`, `.meta` (processing metadata) and a `.jpg
 
 ## 6. Known limitations
 
-- Only the water-spread product is served so far; the EOS-04 backscatter mosaic (`FIGC00ZTD`) is not yet published.
+- Only the water-spread product is served so far; the EOS-04 MRS backscatter mosaic (`FIGC00ZTD`) is not yet published. (The proposal named the ScanSAR NRB India mosaic; the downloaded backscatter product is the MRS 1° mosaic.)
 - One 1° tile, three dates; no time dimension (cycles are separate layers).
 - OGC API – Tiles in GeoServer is a **community module** (nightly builds); behaviour can change between releases.
 - Raster only; values only through `GetFeatureInfo`. The SAR water mask is speckled, so single pixels flip between

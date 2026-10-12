@@ -63,5 +63,23 @@ Real Bhoonidhi open data, downloaded through the portal cart (free registration)
 | 97 | 10-Sep to 26-Sep-2026 | WATER-SPREAD | 685,075 |
 
 Each is a 6112 x 6112 px EPSG:4326 GeoTIFF (~18 m), values 0 land, 2 water, 3 background (see the product `.meta`).
-Whole-file downloads of ~9 MB each (water spread) and ~100 MB+ each (backscatter mosaic); an area of interest
-needs a full tile per date. The service turns the same files into styled, cached tiles.
+Download size: water-spread zips are 0.26, 0.50 and 0.23 MB (9.35 MB unzipped each); the backscatter mosaic zips
+(`FIGC00ZTD`) are 100 MB+ each. An area of interest needs one full tile per date either way.
+
+## Measured
+
+Tiles needed to view the Nagarjuna Sagar area (79.0-79.5 E, 16.3-16.9 N, ~50 x 66 km) through the service
+(PNG, EPSG:3857, measured 2026-10-12):
+
+| Zoom | Layers | Tiles | Bytes |
+|---|---|---|---|
+| 9 | 1 date | 4 | 2.6 KB |
+| 9 | 3 dates | 12 | 8.7 KB |
+| 10 | 1 date | 6 | 4.7 KB |
+| 10 | 3 dates | 18 | 17 KB |
+| 11 | 1 date | 16 | 12.6 KB |
+| 11 | 3 dates | 48 | 45 KB |
+
+Versus downloading the three water-spread zips (~1.0 MB) and processing them locally; for backscatter the ratio is far
+larger. Honest reading: the saving for water spread is modest in absolute terms; the real gain is that **no GIS
+processing, unzipping or format knowledge is needed**, and that the data becomes consumable by any OGC client.
